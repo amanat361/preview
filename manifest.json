@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "id": "amanat361.preview",
+  "name": "Preview",
+  "version": "0.1.0",
+  "author": "Samin Amanat",
+  "license": "MIT",
+  "description": "See and control branch preview dev servers from the bar.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "Preview",
+    "description": "Count of running branch preview dev servers, with a popup to start, stop, restart, open, and delete them.",
+    "category": "Development",
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "refreshIntervalSec": 5,
+      "previewBin": "preview",
+      "terminal": ""
+    },
+    "schema": [
+      {
+        "key": "refreshIntervalSec",
+        "type": "integer",
+        "label": "Refresh interval (seconds)",
+        "min": 2,
+        "max": 120,
+        "step": 1,
+        "defaultValue": 5
+      },
+      {
+        "key": "previewBin",
+        "type": "string",
+        "label": "Preview command",
+        "defaultValue": "preview"
+      },
+      {
+        "key": "terminal",
+        "type": "string",
+        "label": "Terminal command (blank = $TERMINAL or alacritty)",
+        "defaultValue": ""
+      }
+    ]
+  }
+}
