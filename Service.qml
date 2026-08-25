@@ -16,6 +16,23 @@ Item {
   property bool refreshing: false
   property bool everLoaded: false
   property string lastError: ""
+
+  // True once the watchdog has decided the CLI is not on PATH. Someone who
+  // installed with `omarchy plugin add` has the whole repo sitting in the
+  // plugin directory but no binary, so this state offers to build one.
+  property bool cliMissing: false
+  property bool envProbed: false
+  property bool hasBun: false
+  property bool hasInstaller: false
+
+  // The plugin's own directory, from where this QML file was loaded. That is
+  // the clone `omarchy plugin add` made, so install.sh is right there.
+  readonly property string pluginDir: {
+    var url = String(Qt.resolvedUrl("."))
+    if (url.indexOf("file://") !== 0) return ""
+    var path = url.substring(7).replace(/\/+$/, "")
+    try { return decodeURIComponent(path) } catch (e) { return path }
+  }
   // Raw JSON of the last successful poll, handed back verbatim by IPC status().
   property string lastStatusJson: ""
 
@@ -35,6 +52,7 @@ Item {
   readonly property bool actionBusy: actionProcess.running
 
   property string _statusOut: ""
+  property string _probeOut: ""
   property string _actionErr: ""
   property string _actionOut: ""
   property string _actionKey: ""
@@ -57,9 +75,35 @@ Item {
     if (statusProcess.running) return
     _statusOut = ""
     refreshing = true
-    statusProcess.command = [previewBin, "status", "--json", "--all-repos"]
+    // Through a login shell so a GUI-launched bar still finds ~/.local/bin, and so a
+    // missing binary is a plain exit 127 instead of a spawn that never reports back.
+    statusProcess.command = ["bash", "-lc", Model.shellQuote(previewBin) + " status --json --all-repos"]
     statusProcess.running = true
     spawnWatchdog.restart()
+  }
+
+  // ------------------------------------------------------- CLI installation
+
+  // One probe answers both questions, and only ever runs in the already-broken
+  // state. A pure string check of PATH could not tell whether bun is actually
+  // there, and nothing else in QML can stat install.sh.
+  function probeEnv() {
+    if (probeProcess.running || pluginDir === "") return
+    _probeOut = ""
+    probeProcess.command = ["bash", "-lc",
+      "if command -v bun >/dev/null 2>&1 || [ -x \"$HOME/.bun/bin/bun\" ]; then echo bun; fi; "
+      + "if [ -f " + Model.shellQuote(pluginDir + "/install.sh") + " ]; then echo installer; fi"]
+    probeProcess.running = true
+  }
+
+  // Keeps the terminal open on the result. A build that fails on a missing bun
+  // is exactly the case where the message must not vanish.
+  function installCli() {
+    if (pluginDir === "") return
+    openTerminal(pluginDir, ["bash", "-lc",
+      "./install.sh --cli; echo; read -rp \"Done. Press enter to close.\""])
+    installPoll.ticks = 0
+    installPoll.running = true
   }
 
   function applyStatus(raw) {
@@ -283,7 +327,54 @@ Item {
     onTriggered: {
       if (!root.refreshing) return
       root.refreshing = false
-      if (!root.everLoaded) root.lastError = root.previewBin + " not found on PATH"
+      // Clear the slot so the next poll can actually start. Without this a
+      // process stuck in `running` would block every later refresh, and the
+      // panel would never notice the CLI arriving after an install.
+      if (statusProcess.running) statusProcess.running = false
+      if (!root.everLoaded) {
+        root.lastError = root.previewBin + " not found on PATH"
+        root.cliMissing = true
+      }
+    }
+  }
+
+  // After launching the installer, poll fast enough that the panel flips to the
+  // normal view on its own once the binary lands, then give up rather than
+  // hammering `status` forever if the user abandoned the build.
+  Timer {
+    id: installPoll
+    property int ticks: 0
+    interval: 3000
+    repeat: true
+    running: false
+    onTriggered: {
+      installPoll.ticks += 1
+      root.refresh()
+      if (installPoll.ticks >= 30) {
+        installPoll.ticks = 0
+        installPoll.running = false
+      }
+    }
+  }
+
+  onCliMissingChanged: {
+    if (cliMissing) probeEnv()
+    else {
+      installPoll.ticks = 0
+      installPoll.running = false
+    }
+  }
+
+  Process {
+    id: probeProcess
+    running: false
+    command: []
+    stdout: StdioCollector { id: probeOut; waitForEnd: true; onStreamFinished: root._probeOut = text }
+    onExited: {
+      var out = String(probeOut.text || root._probeOut || "")
+      root.hasBun = /(^|\n)bun(\n|$)/.test(out)
+      root.hasInstaller = /(^|\n)installer(\n|$)/.test(out)
+      root.envProbed = true
     }
   }
 
@@ -300,6 +391,12 @@ Item {
       root.refreshing = false
       var out = String(statusOut.text || root._statusOut || "")
       var err = String(statusErr.text || "")
+      if (exitCode === 127 && !root.everLoaded) {
+        root.lastError = root.previewBin + " not found on PATH"
+        root.cliMissing = true
+        return
+      }
+      root.cliMissing = false
       if (exitCode === 0) root.applyStatus(out)
       else root.lastError = Model.elide(Model.lastLine(err) || Model.lastLine(out) || "Could not read preview status")
     }

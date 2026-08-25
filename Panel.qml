@@ -35,8 +35,21 @@ Panel {
   readonly property string glyphLogs: "󰈙"
   readonly property string glyphDelete: "󰩹"
   readonly property string glyphNew: "󰐕"
+  readonly property string glyphInstall: "󰇚"
 
-  readonly property var rows: Model.buildRows(previews.repos)
+  // The one state that replaces the list rather than adding to it: no CLI, so
+  // there is nothing to list and exactly one useful thing to do.
+  readonly property bool needsCli: previews.cliMissing && previews.repos.length === 0
+  readonly property string installDetail: {
+    if (previews.envProbed && !previews.hasInstaller)
+      return "Clone github.com/amanat361/preview and run ./install.sh --cli"
+    if (previews.envProbed && !previews.hasBun) return "Needs bun (bun.sh) first"
+    return "Builds it with bun into ~/.local/bin"
+  }
+
+  readonly property var rows: needsCli
+    ? [{ kind: "install", repoIndex: -1, previewIndex: -1 }]
+    : Model.buildRows(previews.repos)
   property int cursorIndex: 0
   property bool cursorActive: false
 
@@ -96,6 +109,7 @@ Panel {
   function activateRow(index) {
     var row = rowAt(index)
     if (!row) return
+    if (row.kind === "install") { root.installCli(); return }
     var repo = Model.repoAt(previews.repos, row.repoIndex)
     if (!repo) return
     if (row.kind === "new") { previews.newPreview(repo.path); root.close(); return }
@@ -105,6 +119,14 @@ Panel {
     // One obvious thing per row: look at it if it is up, bring it up if it is not.
     if (previews.effectiveRunning(repo.path, preview)) previews.openUrl(preview.port)
     else previews.start(repo.path, preview.branch)
+  }
+
+  // Nothing to launch when the repo was copy-installed without install.sh; the
+  // detail line already says where to get it.
+  function installCli() {
+    if (previews.envProbed && !previews.hasInstaller) return
+    previews.installCli()
+    root.close()
   }
 
   function toggleSelected() {
@@ -175,6 +197,8 @@ Panel {
       nowMs = Date.now()
       if (panelFlick) panelFlick.contentY = 0
       previews.refresh()
+      // Re-check on every open: the user may have installed bun since last time.
+      if (previews.cliMissing) previews.probeEnv()
       Qt.callLater(function() { keyCatcher.forceActiveFocus() })
     } else {
       confirmBranch = ""
@@ -273,7 +297,9 @@ Panel {
             id: hero
             width: parent.width
             title: "Previews"
-            meta: root.loading
+            meta: root.needsCli
+              ? "CLI not installed"
+              : root.loading
               ? "Loading"
               : (previews.runningCount > 0
                 ? previews.runningCount + " running of " + previews.previewCount
@@ -317,6 +343,15 @@ Panel {
             font.family: root.fontFamily
             font.pixelSize: Style.font.bodySmall
             wrapMode: Text.WordWrap
+          }
+
+          SimpleRow {
+            visible: root.needsCli
+            width: parent.width
+            glyph: root.glyphInstall
+            label: "Install the preview CLI"
+            detail: root.installDetail
+            flatIndex: root.needsCli ? 0 : -1
           }
 
           Text {

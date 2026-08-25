@@ -50,7 +50,7 @@ Hooks are plain scripts for whatever your project needs around a preview (point 
 
 Shows how many previews are running. Click it for the list: open in the browser, start, stop, restart, terminal, claude, logs, delete. Works across every repo you've used `preview` in. Settings (refresh interval, terminal) live in your Omarchy bar config.
 
-To install just the widget on another Omarchy machine: `omarchy plugin add https://github.com/amanat361/preview.git --enable`. It expects `preview` on your PATH.
+On another Omarchy machine you can install just the widget with `omarchy plugin add https://github.com/amanat361/preview.git --enable`. That doesn't give you the `preview` binary, so the first time you open the widget it offers to build one for you (needs bun). Or clone the repo and run `./install.sh` to get both at once.
 
 ## Scripting
 
