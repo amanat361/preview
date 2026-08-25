@@ -44,8 +44,12 @@ export async function currentBranch(wt: string): Promise<string> {
   return (await $`git -C ${wt} rev-parse --abbrev-ref HEAD`.quiet().nothrow()).stdout.toString().trim() || "?";
 }
 
+/** true only if `dir` is itself the top of a checkout (any folder inside a repo passes --is-inside-work-tree) */
 export async function isWorktree(dir: string): Promise<boolean> {
-  return gitOk(dir, "rev-parse", "--is-inside-work-tree");
+  const r = await $`git -C ${dir} rev-parse --show-toplevel`.quiet().nothrow();
+  if (r.exitCode !== 0) return false;
+  const { realpathSync } = await import("node:fs");
+  try { return realpathSync(r.stdout.toString().trim()) === realpathSync(dir); } catch { return false; }
 }
 
 export interface Safety { dirty: string; unpushed: string; unpushedCount: number; noUpstream: boolean }

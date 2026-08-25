@@ -179,12 +179,10 @@ function buildRows(repos) {
   var list = Array.isArray(repos) ? repos : []
   var rows = []
   for (var i = 0; i < list.length; i++) {
-    if (list[i].main) rows.push({ kind: "main", repoIndex: i, previewIndex: -1 })
     var previews = list[i].previews || []
     for (var j = 0; j < previews.length; j++) rows.push({ kind: "preview", repoIndex: i, previewIndex: j })
   }
   for (var k = 0; k < list.length; k++) rows.push({ kind: "new", repoIndex: k, previewIndex: -1 })
-  rows.push({ kind: "refresh", repoIndex: -1, previewIndex: -1 })
   return rows
 }
 
@@ -192,7 +190,6 @@ function rowIndexOf(rows, kind, repoIndex, previewIndex) {
   var list = Array.isArray(rows) ? rows : []
   for (var i = 0; i < list.length; i++) {
     if (list[i].kind !== kind) continue
-    if (kind === "refresh") return i
     if (list[i].repoIndex !== repoIndex) continue
     if (kind === "preview" && list[i].previewIndex !== previewIndex) continue
     return i

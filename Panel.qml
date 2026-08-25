@@ -96,7 +96,6 @@ Panel {
   function activateRow(index) {
     var row = rowAt(index)
     if (!row) return
-    if (row.kind === "refresh") { previews.refresh(); return }
     var repo = Model.repoAt(previews.repos, row.repoIndex)
     if (!repo) return
     if (row.kind === "new") { previews.newPreview(repo.path); root.close(); return }
@@ -355,15 +354,6 @@ Panel {
                 fontFamily: root.fontFamily
               }
 
-              SimpleRow {
-                visible: !!repoEntry.modelData.main
-                width: parent.width
-                glyph: root.glyphServer
-                label: (repoEntry.modelData.main && repoEntry.modelData.main.branch) ? repoEntry.modelData.main.branch : "main"
-                detail: Model.mainSubtitle(repoEntry.modelData.main)
-                muted: !(repoEntry.modelData.main && repoEntry.modelData.main.running)
-                flatIndex: Model.rowIndexOf(root.rows, "main", repoEntry.index, -1)
-              }
 
               Repeater {
                 model: repoEntry.modelData.previews
@@ -416,14 +406,6 @@ Panel {
                 detail: "Opens the interactive picker in a terminal"
                 flatIndex: Model.rowIndexOf(root.rows, "new", index, -1)
               }
-            }
-
-            SimpleRow {
-              width: footer.width
-              glyph: root.glyphRefresh
-              label: "Refresh"
-              detail: previews.refreshing ? "Checking" : "Re-read preview status"
-              flatIndex: Model.rowIndexOf(root.rows, "refresh", -1, -1)
             }
           }
         }
@@ -506,7 +488,7 @@ Panel {
   }
 
   // A row whose only interaction is being activated: the repo's own dev server
-  // (opens its port), "New preview", and "Refresh".
+  // "New preview". The main checkout is not a preview: it stays in status --json and behind middle-click.
   component SimpleRow: CursorSurface {
     id: simpleRow
     property string glyph: ""
