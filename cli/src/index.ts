@@ -8,24 +8,37 @@ import { readRegistry } from "./registry";
 import * as cmd from "./commands";
 import { list, picker } from "./interactive";
 
-const HELP = `preview — run any branch on its own dev server in an ephemeral worktree
+const HELP = `preview: run a branch on its own dev server, in its own worktree.
 
-  preview                          interactive: pick an open PR or branch, start it, then cd / claude / open
-  preview up <ref> [port] [flags]  start a preview; <ref> = branch, PR number (430 or "#430") or PR URL.
-                                   unknown flags (e.g. -c, --isolate) are passed to the repo's hooks
-  preview list                     dashboard: pick a worktree, then act on it (non-tty: plain table)
-  preview logs <ref> [n]           last n (default 50) dev-server log lines
-  preview down <ref> [--force]     delete a preview (guarded: refuses to lose uncommitted/unpushed work)
-  preview down --all               delete every preview (same guard)
-  preview status [--json] [--all-repos]
-  preview start|stop|restart [--hard]|open <ref>
-  preview repos                    repos this tool has served
+  preview                 pick a PR or branch and start it
+  preview up <ref>        start one (branch, PR number, or PR URL)
+  preview list            see them all, pick one to manage
+  preview down <ref>      delete one (keeps anything unpushed)
 
-  --repo <path>                    act on that repo instead of the current directory
+  preview logs <ref>      last 50 log lines
+  preview start|stop|restart|open <ref>
+  preview status          plain table, or --json
 
-Config: an optional .previewrc.json in the repo root (start, readyPattern, portRange, mainPort,
-worktreeDir, worktreePrefix, copyFiles, linkDirs, hooks.setup/stop/info). Defaults suit most
-Next.js/Vite repos. Worktrees live in <worktreeDir>/<worktreePrefix><branch>.`;
+More: preview help all`;
+
+const HELP_ALL = `${HELP}
+
+  preview up <ref> [port] [flags]   flags the tool doesn't know go to the repo's hooks
+  preview down --all                delete every preview (same guard)
+  preview down <ref> --force        skip the guard
+  preview restart <ref> --hard      clear the build cache first
+  preview status --json --all-repos every repo this tool has been used in
+  preview repos                     list those repos
+  --repo <path>                     act on that repo instead of the current one
+
+Worktrees live in .preview-worktrees/ (or wherever .previewrc.json says), get a free port
+from 3001-3019, .env.local copied in and node_modules linked. Running "up" again on the
+same branch pulls and restarts it.
+
+Config is optional: a .previewrc.json in the repo root with any of
+  name, start, readyPattern, portRange, mainPort, worktreeDir, worktreePrefix,
+  copyFiles, linkDirs, hooks.setup / hooks.stop / hooks.info
+See https://github.com/amanat361/preview`;
 
 const KNOWN = new Set(["--json", "--all-repos", "--force", "--hard", "--all", "-h", "--help"]);
 const argv = process.argv.slice(2);
@@ -57,7 +70,7 @@ async function target(r: Repo, ref: string | undefined, usage: string) {
 }
 
 try {
-  if (flags.has("-h") || flags.has("--help") || verb === "help") { console.log(HELP); process.exit(0); }
+  if (flags.has("-h") || flags.has("--help") || verb === "help") { console.log(rest[0] === "all" || flags.has("--all") ? HELP_ALL : HELP); process.exit(0); }
   switch (verb) {
     case undefined: await picker(await repo()); break;
     case "up": {
