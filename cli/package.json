@@ -1,0 +1,13 @@
+{
+  "name": "preview",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "bun build --compile --minify src/index.ts --outfile dist/preview",
+    "dev": "bun src/index.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}
