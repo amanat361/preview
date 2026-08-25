@@ -3,13 +3,13 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { type Repo } from "./config";
 import { isAdopted } from "./git";
+import { spawnEnv } from "./env";
 
 export let passthroughFlags: string[] = [];
 export function setPassthroughFlags(flags: string[]) { passthroughFlags = flags; }
 
 export function hookEnv(repo: Repo, wt: string, branch: string, port: number) {
-  return {
-    ...process.env,
+  return spawnEnv({
     PREVIEW_REPO: repo.root,
     PREVIEW_WT: wt,
     PREVIEW_WT_ROOT: repo.wtRoot,
@@ -17,7 +17,7 @@ export function hookEnv(repo: Repo, wt: string, branch: string, port: number) {
     PREVIEW_PORT: port ? String(port) : "",
     PREVIEW_ADOPTED: isAdopted(repo, wt) ? "1" : "0",
     PREVIEW_FLAGS: passthroughFlags.join(" "),
-  };
+  });
 }
 
 /** Run hook `name` if configured. Output goes to the terminal; non-zero exit throws. */

@@ -6,6 +6,7 @@ import { type Repo, relpath } from "./config";
 import { log } from "./git";
 import { runHook } from "./hooks";
 import { adbReverse, adbUnreverse } from "./android";
+import { spawnEnv } from "./env";
 
 export const readText = (p: string) => (existsSync(p) ? readFileSync(p, "utf8").trim() : "");
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -123,7 +124,7 @@ export async function startServer(repo: Repo, wt: string, wanted?: number): Prom
   // so .preview.pid is always the killable process-group id
   const child = Bun.spawn(["setsid", "bash", "-c", 'echo $$ >"$1"; cd "$2"; eval "exec $3"', "bash", pidfile, wt, repo.config.start], {
     cwd: wt,
-    env: { ...process.env, PORT: String(port) },
+    env: spawnEnv({ PORT: String(port) }),
     stdin: "ignore",
     stdout: Bun.file(logfile),
     stderr: Bun.file(logfile),
