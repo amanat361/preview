@@ -40,16 +40,22 @@ install_cli() {
 
 install_plugin() {
   has_omarchy || { echo "plugin: skipped (no Omarchy here)"; return; }
+  local existed=0; [ -d "$PLUGIN_DIR" ] && existed=1
   rm -rf "$PLUGIN_DIR"
   mkdir -p "$PLUGIN_DIR"
   cp manifest.json Panel.qml Service.qml Model.js "$PLUGIN_DIR/"
   omarchy plugin validate "$PLUGIN_DIR" >/dev/null
-  omarchy-shell shell rescanPlugins >/dev/null 2>&1 || true
   if ! grep -q "\"$PLUGIN_ID\"" "${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/shell.json" 2>/dev/null; then
+    omarchy-shell shell rescanPlugins >/dev/null 2>&1 || true
     omarchy plugin enable "$PLUGIN_ID" --section right >/dev/null
     echo "plugin: $PLUGIN_DIR (added to the bar, right section)"
+  elif [ "$existed" = 1 ]; then
+    # the shell caches loaded QML; copying over an existing plugin does not reliably reload it
+    omarchy restart shell >/dev/null 2>&1 || true
+    echo "plugin: $PLUGIN_DIR (updated, shell restarted)"
   else
-    echo "plugin: $PLUGIN_DIR (already in the bar, refreshed)"
+    omarchy-shell shell rescanPlugins >/dev/null 2>&1 || true
+    echo "plugin: $PLUGIN_DIR (refreshed)"
   fi
 }
 
