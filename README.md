@@ -12,6 +12,8 @@ preview down <ref>         delete it (won't throw away uncommitted or unpushed w
 
 Each preview gets a worktree under `.preview-worktrees/`, a free port in 3001-3019, `.env.local` copied in, `node_modules` linked. Run `up` again on the same branch and it pulls and restarts. `down` removes the worktree and the local branch; the branch stays on origin.
 
+Each worktree's `.env*` files are the only env source for its server and hooks: any variable defined in the `.env*` files of the directory you ran `preview` from is stripped before spawning, so the main checkout's backend can never leak into a preview (Bun loads those files into `preview`'s own environment, and environment beats file for Next and most CLIs).
+
 ## Install
 
 Needs [bun](https://bun.sh). Builds a single binary into `~/.local/bin/preview`. On Omarchy it also installs the bar widget.
