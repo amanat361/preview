@@ -33,7 +33,9 @@ async function readKey(): Promise<string> {
     const s = new TextDecoder().decode(value || new Uint8Array());
     return s[0] === "\x1b" && s.length > 1 ? "" : s[0] || "";
   } finally {
-    reader.releaseLock();
+    // cancel, not releaseLock: a released reader leaves a read pending on /dev/tty, which then
+    // competes with a spawned shell for keystrokes and gets preview stopped with SIGTTIN
+    await reader.cancel();
     await $`stty icanon echo < /dev/tty`.nothrow().quiet();
   }
 }
